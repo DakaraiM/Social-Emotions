@@ -34,7 +34,7 @@ myfiles.long <- melt(myfiles.ROI, id.vars = c("Mean_Thickness.mm.", "GM_Volume.m
 myfiles.long$ROI <- myfiles.long$ROI <- as.factor(myfiles.long$ROI)
 
 # Cast ROI's as categorical variables
-str(myfiles.long)
+#str(myfiles.long)
 
 ```
 
