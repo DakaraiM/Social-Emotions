@@ -1,0 +1,81 @@
+---
+title: "Structural Descriptive Statistics"
+author: "DakaraiMcCoy"
+date: "8/28/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import data
+```{r import data}
+# Use R to get a list of files 
+temp <- list.files("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Automated/wave2", pattern = "*.txt", full.names = TRUE)
+# Create list of data frames
+myfiles = lapply(temp,read.delim)
+
+```
+
+## Clean data
+```{r}
+library(plyr)
+       
+# In each data frame, create a subset data frame for the ROI and the measurments of interest. 
+myfiles.ROI <-lapply(myfiles, function(x) {subset.data.frame(x,ROI_ID >= 500 & ROI_ID < 600,c(ROI_ID,Mean_Thickness.mm.,GM_Volume.mm.3.,WM_Volume.mm.3.))})
+
+# Melt the data to create a long data frame suitable for casting 
+library(reshape2)
+
+myfiles.long <- melt(myfiles.ROI, id.vars = c("Mean_Thickness.mm.", "GM_Volume.mm.3.", "WM_Volume.mm.3."), measure.vars = "ROI_ID", value.name = "ROI")
+
+# Make sure the ROI's are categrical.
+myfiles.long$ROI <- myfiles.long$ROI <- as.factor(myfiles.long$ROI)
+
+# Cast ROI's as categorical variables
+str(myfiles.long)
+
+```
+
+## Read each dataframe and get averages
+```{r}
+
+
+
+```
+## Plot statistics using sex, and age to see trends
+
+
+## Get Descriptive Statistics
+## using non-parametric pertubations, is there a group difference in wave 1. 
+## Null Hypothesis is that there is no group difference in mean cortical thickness. alternative Hypothesis is that there is a group difference in mean cortical thickness. 
+
+## Null Hypothesis is that there is no difference of the mean cortical thickness between the two groups of students. Alternative hypothesis is that there is a difference of the mean cortical thickness between the two groups of students. 
+```{r}
+library(ggplot2)
+
+# Show box plot of mean cortical thickness in each ROI
+p <- ggplot(myfiles.long, mapping = aes(x = "Mean Thickness in mm", y = Mean_Thickness.mm.)) +
+             geom_boxplot() +
+             geom_jitter(width = 0.2) +   # add a plot layer with points
+             facet_wrap(~ROI, ncol = 2)
+show(p)
+
+# Show box plot of WM Volume in each ROI
+p <- ggplot(myfiles.long, mapping = aes(x = "White Matter Volume in mm^3", y = myfiles.long$WM_Volume.mm.3.)) +
+             geom_boxplot() +
+             geom_jitter(width = 0.2) +   # add a plot layer with points
+             facet_wrap(~ROI, ncol = 2)
+show(p)
+
+# Show box plot of GM Volume in each ROI
+p <- ggplot(myfiles.long, mapping = aes(x = "Gray matter Volume in mm^3", y = myfiles.long$GM_Volume.mm.3.)) +
+             geom_boxplot() + 
+             #geom_jitter(width = 0.2) +   # add a plot layer with points
+             facet_wrap(~ROI, ncol = 2)
+show(p)
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
