@@ -32,7 +32,10 @@ myfiles.long <- melt(myfiles.ROI, id.vars = c("Mean_Thickness.mm.", "GM_Volume.m
 
 # Make sure the ROI's are categrical.
 myfiles.long$ROI <- myfiles.long$ROI <- as.factor(myfiles.long$ROI)
-
+myfiles.long$left <- ifelse(myfiles.long$ROI %in% c("500", "510", "520", "530"), 
+                            "left", "right")
+myfiles.long$region <- substr(myfiles.long$ROI, 1, 2)
+myfiles.long$region <- factor(myfiles.long$region, labels = c("a", "b", "c", "d"))
 # Cast ROI's as categorical variables
 #str(myfiles.long)
 
@@ -49,10 +52,11 @@ myfiles.long$ROI <- myfiles.long$ROI <- as.factor(myfiles.long$ROI)
 
 ## Get Descriptive Statistics
 ## using non-parametric pertubations, is there a group difference in wave 1. 
+
+```{r}
 ## Null Hypothesis is that there is no group difference in mean cortical thickness. alternative Hypothesis is that there is a group difference in mean cortical thickness. 
 
 ## Null Hypothesis is that there is no difference of the mean cortical thickness between the two groups of students. Alternative hypothesis is that there is a difference of the mean cortical thickness between the two groups of students. 
-```{r}
 library(ggplot2)
 
 # Show box plot of mean cortical thickness in each ROI
@@ -70,11 +74,15 @@ p <- ggplot(myfiles.long, mapping = aes(x = "White Matter Volume in mm^3", y = m
 show(p)
 
 # Show box plot of GM Volume in each ROI
-p <- ggplot(myfiles.long, mapping = aes(x = "Gray matter Volume in mm^3", y = myfiles.long$GM_Volume.mm.3.)) +
+p <- ggplot(myfiles.long, mapping = aes(y = GM_Volume.mm.3.)) +
              geom_boxplot() + 
-             #geom_jitter(width = 0.2) +   # add a plot layer with points
-             facet_wrap(~ROI, ncol = 2)
+             geom_jitter(aes(x = 0), width = 0.1, height = 0, 
+                         size = .3) +   # add a plot layer with points
+             facet_grid(region ~ left, scales = "free")
 show(p)
+
+## TO DO LIST and OBSERVATIONS
+The plot from up above produce boxplots, however the scaling is poor and needs work
 
 ```
 
