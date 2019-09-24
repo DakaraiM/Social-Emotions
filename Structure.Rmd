@@ -12,32 +12,40 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Import data
 ```{r import data}
 # Use R to get a list of files 
-temp <- list.files("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Automated/wave2", pattern = "*.txt", full.names = TRUE)
+temp <- list.files("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Automated/wave1", pattern = "*.txt", full.names = TRUE)
 # Create list of data frames
 myfiles = lapply(temp,read.delim)
 
 ```
 
-## Clean data
+## Clean data - At a later point generalize to full data set
 ```{r}
 library(plyr)
        
 # In each data frame, create a subset data frame for the ROI and the measurments of interest. 
-myfiles.ROI <-lapply(myfiles, function(x) {subset.data.frame(x,ROI_ID >= 500 & ROI_ID < 600,c(ROI_ID,Mean_Thickness.mm.,GM_Volume.mm.3.,WM_Volume.mm.3.))})
+# Get Insula ROI's
+myfiles.ROI <-lapply(myfiles, function(x) {subset.data.frame(x, ROI_ID >= 500 & ROI_ID < 600,c(ROI_ID,Mean_Thickness.mm.,GM_Volume.mm.3.,WM_Volume.mm.3.))})
 
 # Melt the data to create a long data frame suitable for casting 
 library(reshape2)
 
-myfiles.long <- melt(myfiles.ROI, id.vars = c("Mean_Thickness.mm.", "GM_Volume.mm.3.", "WM_Volume.mm.3."), measure.vars = "ROI_ID", value.name = "ROI")
+# Data is formatted so that each id.vars are the variables measured in each ROI, which is the measurment variable with values equal to the regoin of interest.
+myfiles.long <- melt(myfiles.ROI, 
+                     id.vars = c("Mean_Thickness.mm.", "GM_Volume.mm.3.", "WM_Volume.mm.3."),
+                     measure.vars = "ROI_ID", value.name = "ROI")
 
 # Make sure the ROI's are categrical.
 myfiles.long$ROI <- myfiles.long$ROI <- as.factor(myfiles.long$ROI)
-myfiles.long$left <- ifelse(myfiles.long$ROI %in% c("500", "510", "520", "530"), 
-                            "left", "right")
+
+# Separate the hemispheres
+myfiles.long$hemisphere <- ifelse(myfiles.long$ROI %in% c("500", "510", "520", "530"), 
+                            "right", "left")
 myfiles.long$region <- substr(myfiles.long$ROI, 1, 2)
-myfiles.long$region <- factor(myfiles.long$region, labels = c("a", "b", "c", "d"))
-# Cast ROI's as categorical variables
-#str(myfiles.long)
+
+# Create a region label
+myfiles.long$region <- factor(myfiles.long$region, 
+                              labels = c("Insula", "dA-Insula", "vA-Insula", "post-Insula"))
+str(myfiles.long)
 
 ```
 
@@ -51,7 +59,7 @@ myfiles.long$region <- factor(myfiles.long$region, labels = c("a", "b", "c", "d"
 
 
 ## Get Descriptive Statistics
-## using non-parametric pertubations, is there a group difference in wave 1. 
+
 
 ```{r}
 ## Null Hypothesis is that there is no group difference in mean cortical thickness. alternative Hypothesis is that there is a group difference in mean cortical thickness. 
@@ -60,29 +68,56 @@ myfiles.long$region <- factor(myfiles.long$region, labels = c("a", "b", "c", "d"
 library(ggplot2)
 
 # Show box plot of mean cortical thickness in each ROI
-p <- ggplot(myfiles.long, mapping = aes(x = "Mean Thickness in mm", y = Mean_Thickness.mm.)) +
+p <- ggplot(myfiles.long, mapping = aes(y = Mean_Thickness.mm.)) +
              geom_boxplot() +
-             geom_jitter(width = 0.2) +   # add a plot layer with points
-             facet_wrap(~ROI, ncol = 2)
+             geom_jitter(aes(x = 0), width = 0.1, height = 0, 
+                         size = .3) +   # add a plot layer with points
+             facet_grid(region ~ hemisphere, scales = "free") +
+             coord_flip()
+  
 show(p)
 
 # Show box plot of WM Volume in each ROI
-p <- ggplot(myfiles.long, mapping = aes(x = "White Matter Volume in mm^3", y = myfiles.long$WM_Volume.mm.3.)) +
+p <- ggplot(myfiles.long, mapping = aes(y = WM_Volume.mm.3.)) +
              geom_boxplot() +
-             geom_jitter(width = 0.2) +   # add a plot layer with points
-             facet_wrap(~ROI, ncol = 2)
+             geom_jitter(aes(x = 0), width = 0.1, height = 0, 
+                         size = .3) +   # add a plot layer with points
+             facet_grid(region ~ hemisphere, scales = "free") + 
+             coord_flip()
 show(p)
 
 # Show box plot of GM Volume in each ROI
 p <- ggplot(myfiles.long, mapping = aes(y = GM_Volume.mm.3.)) +
              geom_boxplot() + 
-             geom_jitter(aes(x = 0), width = 0.1, height = 0, 
+             geom_jitter( aes(x = 0), width = 0.1, height = 0, 
                          size = .3) +   # add a plot layer with points
-             facet_grid(region ~ left, scales = "free")
+                                        # position = position_jitter(width = 0.1), 
+             facet_grid(region ~ hemisphere , scales = "free") + 
+             coord_flip()
 show(p)
 
 ## TO DO LIST and OBSERVATIONS
-The plot from up above produce boxplots, however the scaling is poor and needs work
+# ## Outlier detection,  THis works however I need the function to be more specific for the type of data used in calculating the mean corticalthickness. For example, I need to outlier for each ROI and hemisphere independnently for each brain measure. Its probably best to create a table with each of these values as a separate column. 
+
+x <- myfiles.long$Mean_Thickness.mm.
+qnt <- quantile(x, probs=c(.25, .75), na.rm = T)
+caps <- quantile(x, probs=c(.05, .95), na.rm = T)
+H <- 1.5 * IQR(x, na.rm = T)
+# Calculate outliers based off of Tukeys' IQR statistic
+x[x < (qnt[1] - H)] <- caps[1]
+x[x > (qnt[2] + H)] <- caps[2]
+
+
+# This sorts the data into a format that I want to separate to create individual dataframes according to the ROI and the region.
+test <- cbind(mean_thickness = myfiles.long$Mean_Thickness.mm., GM_Volume = myfiles.long$GM_Volume.mm.3., WM_Volume = myfiles.long$WM_Volume.mm.3., ROI = myfiles.long$ROI, Region = myfiles.long$region, hemisphere = myfiles.long$hemisphere, subject =  myfiles.long$L1)[sort(myfiles.long$ROI), ]
+
+# Create a dataframe for each ROI and each region and then compute outliers.
+
+
+
+
+# Diagnostic tools to check if all assumptions are met for each type of  
+
 
 ```
 
