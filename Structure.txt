@@ -3,3 +3,24 @@ Author: Dakarai McCoy
 
 The purpose of this text file is to document the process of statistical analysis and the logic used within. The logic should provide reason for each step taken as measured by the goal, and defined by transformations of input to output. 
 
+Title: Pre-Processing of structural brain measures from BrainSuite structural pipeline. 
+
+Research Questions: Do the structural brain measures dervied from BrainSuite make sense? What are reasonable measures for imaging data of non-white first generation adolescent-brains who come from immigrant families in the Los Angeles Unified School District? What is the distribution of the brain measures in each region of interest? How do the brain measures differ when considering variables such as age, sex, and cultural identification? Which subjects are outliers? Do the same outliers appear in multiple regions of interest or brain measures? What factors about the BrainSuite structural pipeline can influence the variation in brain measures? Does a normal assumption fit the data? If so, under which conditions? Are there other data sets which generalize a range of acceptable brain measures for adolescents of the same age? If so, what are the range of brain measures? If there are no existing data sets of acceptable brain measures, the following analysis should provide a description of how they may be given. Are the data justified for statistical analysis? 
+
+Goal: To provide justification whether or not the data are suitable for statistical analysis. 
+
+Future directions: How do the brain measures change over time in the same adolescents? What is the individual subject variability across timepoints? 
+
+The following section describes HOW the data may be justified for statistical anlysis by addressing the research questions listed above. and should illustrate the limitations of the structrual imgaging data set. 
+
+The first step is to import data using the 'list.files()' function. The function has parameters 'path', 'pattern', and 'full.names'. 'list.files()' will produce a character vector, of the files or directories in the directory named 'path'. 'path' is a character vector of the full path name in which  'list.files()' will search. 'Pattern' is a regular expression that will return files that end in ".txt". The parameter 'full.names' is a boolean value that will return the absoulte path of all files that meet the 'pattern' criteria. The data is now in a character vector named `temp`. 
+
+Next the data is loaded into a list of data frames by using 'lapply()'. 'lapply()' applies a function over a list or a vector. The function 'read.delim()' is applied over the character vector of path names, `temp`.  The output is a list of data frames called `myfiles`, where the the length of the list is the same as the character vector `temp`. 
+
+The next step is to look at a subset of regions of interest that correspond to the insula. Each data frame is subsetted using a lambda function which searches for all regions that correspond to the Insula and for specific brain measures. The lambda function 'function(x)' applies the 'subset()' function with parameters 'subset', which specifies the Insula regions: (BrainSuite Insula = [500, 501] , dA-Insula = [510, 511], vA-Insula = [520, 521], and post-Insula = [530, 531])), and 'select', which specifies the Grey Matter, White Matter, and Mean Thickness BrainSuite measures. The function 'lapply()' applies the lambda function 'function(x)' over the list of data frames `myfiles` giving another list of data frames called `myfiles.ROI`.  
+
+
+
+Function used to copy the particpant information from the dynamics server.
+scp -P 51279 dakaraim@dynamics.usc.edu://home/dakaraim/Data/MH_adolescent_waves/raw_data/Participant_info.xlsx /Users/work/R/SocialEmotion/
+

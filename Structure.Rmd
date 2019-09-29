@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Import data
 ```{r import data}
 # Use R to get a list of files 
-temp <- list.files("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Automated/wave1", pattern = "*.txt", full.names = TRUE)
+temp <- list.files(path = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Automated/wave1", pattern = "*.txt", full.names = TRUE)
 # Create list of data frames
 myfiles = lapply(temp,read.delim)
 
@@ -24,7 +24,7 @@ library(plyr)
        
 # In each data frame, create a subset data frame for the ROI and the measurments of interest. 
 # Get Insula ROI's
-myfiles.ROI <-lapply(myfiles, function(x) {subset.data.frame(x, ROI_ID >= 500 & ROI_ID < 600,c(ROI_ID,Mean_Thickness.mm.,GM_Volume.mm.3.,WM_Volume.mm.3.))})
+myfiles.ROI <-lapply(myfiles, function(x) {subset.data.frame(x =x, subset = ROI_ID >= 500 & ROI_ID < 600, select = c(ROI_ID,Mean_Thickness.mm.,GM_Volume.mm.3.,WM_Volume.mm.3.))})
 
 # Melt the data to create a long data frame suitable for casting 
 library(reshape2)
@@ -90,11 +90,7 @@ show(p)
 I need to check which subjects are outliers and which subjects are outliers in each region. It appears as though there may be a functional-structure relationship in these areas of the brain. Questions from lab meeting are: Are these brain regions actually measures we can use? Are they representative of the population and can we say these range of values is acceptable for developing adolescents? 
 
 
-## Outlier detection,  THis works however I need the function to be more specific for the type of data used in calculating the mean corticalthickness. For example, I need to outlier for each ROI and hemisphere independnently for each brain measure. Its probably best to create a table with each of these values as a separate column. 
-
-x <- myfiles.long$Mean_Thickness.mm.
-
-# Create a dataframe for each ROI and each region and then compute outliers.
+## Create a dataframe for each ROI and each region and then compute outliers.
 # use reshape from stats package. This is designed to convert data to a wide format when it is listed in a long format. 
 ```{r outliers}
 
@@ -113,30 +109,28 @@ mt <- myfiles.wide[seq(from = 2, to = length(myfiles.wide), by = 3)]
 gm <- myfiles.wide[seq(from = 3, to = length(myfiles.wide), by = 3)]
 wm <- myfiles.wide[seq(from = 4, to = length(myfiles.wide), by = 3)]
 
-gm.boxplot <- boxplot(gm,)
+gm.boxplot <- boxplot(gm)
 mt.boxplot <- boxplot(mt)
 wm.boxplot <- boxplot(wm)
 
 # outliers for GM
-#Doesnt quite work yet. But it should work
-get_outlier_subjects <- function(data,outliers) {
-  out <- c()
-  for (i in 1:ncol(data)){
-    out <- as.list(out,data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
-                                                       signif(data[,i], 7))))
-    
-    #out <- rbind(out,
-    #             subs <- data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
-    #                                                   signif(data[,i], 7))))
-  }
-  }
-
-
-Gm <- get_outlier_subjects(gm,gm.boxplot)
-Mt <- get_outlier_subjects(mt,mt.boxplot)
-Wm <- get_outlier_subjects(wm,wm.boxplot)
-
-
+# Doesnt quite work yet. But it should work
+# get_outlier_subjects <- function(data,outliers) {
+#   out <- c()
+#   for (i in 1:ncol(data)){
+#     out <- as.list(out,data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
+#                                                        signif(data[,i], 7))))
+#     
+#     #out <- rbind(out,
+#     #             subs <- data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
+#     #                                                   signif(data[,i], 7))))
+#   }
+#   }
+# 
+# 
+# Gm <- get_outlier_subjects(gm,gm.boxplot)
+# Mt <- get_outlier_subjects(mt,mt.boxplot)
+# Wm <- get_outlier_subjects(wm,wm.boxplot)
 
 # outliers for MT
 GM <- c()
