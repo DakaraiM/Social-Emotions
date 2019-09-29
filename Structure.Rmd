@@ -19,8 +19,7 @@ myfiles = lapply(temp,read.delim)
 ```
 
 ## Clean data - At a later point generalize to full data set
-```{r}
-library(plyr)
+```{r, clean data}
        
 # In each data frame, create a subset data frame for the ROI and the measurments of interest. 
 # Get Insula ROI's
@@ -30,9 +29,10 @@ myfiles.ROI <-lapply(myfiles, function(x) {subset.data.frame(x =x, subset = ROI_
 library(reshape2)
 
 # Data is formatted so that each id.vars are the variables measured in each ROI, which is the measurment variable with values equal to the regoin of interest.
-myfiles.long <- melt(myfiles.ROI, 
+myfiles.long <- melt(data = myfiles.ROI, 
                      id.vars = c("Mean_Thickness.mm.", "GM_Volume.mm.3.", "WM_Volume.mm.3."),
-                     measure.vars = "ROI_ID", value.name = "ROI")
+                     measure.vars = "ROI_ID", 
+                     value.name = "ROI")
 
 # Make sure the ROI's are categrical.
 myfiles.long$ROI <- myfiles.long$ROI <- as.factor(myfiles.long$ROI)
@@ -180,8 +180,9 @@ outliers.common <- intersect(intersect(unique(GM$outliers_ind),unique(WM$outlier
 ```{r}
 ses_df <- readxl::read_xlsx("Participant_info.xlsx")
 
-# Match subjects to list of subjects 
+# Match subjects ID's to order of subjects in temp (wave 1)
 matches <- lapply(ses_df$`Subject #`, function(x) grep(x, temp, fixed = TRUE))
+
 
 ```
 ## Plot statistics using sex, and age to see trends
