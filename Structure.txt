@@ -1,0 +1,5 @@
+Date: 9/28/19
+Author: Dakarai McCoy
+
+The purpose of this text file is to document the process of statistical analysis and the logic used within. The logic should provide reason for each step taken as measured by the goal, and defined by transformations of input to output. 
+

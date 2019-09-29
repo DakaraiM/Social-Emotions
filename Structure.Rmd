@@ -49,15 +49,6 @@ str(myfiles.long)
 
 ```
 
-## Read each dataframe and get averages
-```{r}
-
-
-
-```
-## Plot statistics using sex, and age to see trends
-
-
 ## Get Descriptive Statistics
 
 
@@ -95,30 +86,116 @@ p <- ggplot(myfiles.long, mapping = aes(y = GM_Volume.mm.3.)) +
              facet_grid(region ~ hemisphere , scales = "free") + 
              coord_flip()
 show(p)
+```
+I need to check which subjects are outliers and which subjects are outliers in each region. It appears as though there may be a functional-structure relationship in these areas of the brain. Questions from lab meeting are: Are these brain regions actually measures we can use? Are they representative of the population and can we say these range of values is acceptable for developing adolescents? 
 
-## TO DO LIST and OBSERVATIONS
-# ## Outlier detection,  THis works however I need the function to be more specific for the type of data used in calculating the mean corticalthickness. For example, I need to outlier for each ROI and hemisphere independnently for each brain measure. Its probably best to create a table with each of these values as a separate column. 
+
+## Outlier detection,  THis works however I need the function to be more specific for the type of data used in calculating the mean corticalthickness. For example, I need to outlier for each ROI and hemisphere independnently for each brain measure. Its probably best to create a table with each of these values as a separate column. 
 
 x <- myfiles.long$Mean_Thickness.mm.
-qnt <- quantile(x, probs=c(.25, .75), na.rm = T)
-caps <- quantile(x, probs=c(.05, .95), na.rm = T)
-H <- 1.5 * IQR(x, na.rm = T)
-# Calculate outliers based off of Tukeys' IQR statistic
-x[x < (qnt[1] - H)] <- caps[1]
-x[x > (qnt[2] + H)] <- caps[2]
-
-
-# This sorts the data into a format that I want to separate to create individual dataframes according to the ROI and the region.
-test <- cbind(mean_thickness = myfiles.long$Mean_Thickness.mm., GM_Volume = myfiles.long$GM_Volume.mm.3., WM_Volume = myfiles.long$WM_Volume.mm.3., ROI = myfiles.long$ROI, Region = myfiles.long$region, hemisphere = myfiles.long$hemisphere, subject =  myfiles.long$L1)[sort(myfiles.long$ROI), ]
 
 # Create a dataframe for each ROI and each region and then compute outliers.
+# use reshape from stats package. This is designed to convert data to a wide format when it is listed in a long format. 
+```{r outliers}
+
+# Calculate statsitics for just the few ROI's of interest primarily in the Insula. 
+
+## TO DO> Build this tool to become a part of the R statistics toolbox. Use this tool to allow the user to select which statistics they wish to run and on which tools. These tools here will allow the user to take statitistics from BrainSuite. 
+library(stats)
+myfiles.wide <- stats::reshape(data = myfiles.long, 
+                               direction = "wide", 
+                               timevar = "ROI", 
+                               idvar = "L1", 
+                               drop = c("variable","region","hemisphere")
+                               )
+str(myfiles.wide)
+mt <- myfiles.wide[seq(from = 2, to = length(myfiles.wide), by = 3)]
+gm <- myfiles.wide[seq(from = 3, to = length(myfiles.wide), by = 3)]
+wm <- myfiles.wide[seq(from = 4, to = length(myfiles.wide), by = 3)]
+
+gm.boxplot <- boxplot(gm,)
+mt.boxplot <- boxplot(mt)
+wm.boxplot <- boxplot(wm)
+
+# outliers for GM
+#Doesnt quite work yet. But it should work
+get_outlier_subjects <- function(data,outliers) {
+  out <- c()
+  for (i in 1:ncol(data)){
+    out <- as.list(out,data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
+                                                       signif(data[,i], 7))))
+    
+    #out <- rbind(out,
+    #             subs <- data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
+    #                                                   signif(data[,i], 7))))
+  }
+  }
+
+
+Gm <- get_outlier_subjects(gm,gm.boxplot)
+Mt <- get_outlier_subjects(mt,mt.boxplot)
+Wm <- get_outlier_subjects(wm,wm.boxplot)
 
 
 
+# outliers for MT
+GM <- c()
+for (i in 1:ncol(gm)){
+GM <- rbind(GM,
+              sub1 <- data.frame(outliers_ind = match(signif(gm.boxplot$out[gm.boxplot$group == i], 7),
+                                                       signif(gm[,i], 7))))
+}
+GM$group = gm.boxplot$group
+# outliers for MT
+MT <- c()
+for (i in 1:ncol(mt)){ 
+  MT <- rbind(MT,
+              sub1 <- data.frame(outliers_ind = match(signif(mt.boxplot$out[mt.boxplot$group == i], 7),
+                                                    signif(mt[,i], 7))))
+}
+MT$group = mt.boxplot$group
 
-# Diagnostic tools to check if all assumptions are met for each type of  
+# outliers for WM
+WM <- c()
+for (i in 1:ncol(wm)){ 
+  WM <- rbind(WM, 
+              sub1 <- data.frame(outliers_ind = match(signif(wm.boxplot$out[wm.boxplot$group == i], 7),
+                                                    signif(wm[,i], 7))))
+}
+WM$group = wm.boxplot$group
 
+# Get all of the outliers that are in each group. If a subject has an outlier in all three methods, That gives me reason to investigate what it happening with these subjects structural maps and segmentation. 
+outliers.common <- intersect(intersect(unique(GM$outliers_ind),unique(WM$outliers_ind)),unique(MT$outliers_i))
+
+#Check all the outliers that are in the same ROI.
+  outliers.group = c()
+  for (i in 1:ncol(gm)){
+   outliers.group <- data.frame(intersect(intersect(WM$outliers_ind[WM$group == i],
+                                                    GM$outliers_ind[GM$group==i]),
+                                          MT$outliers_i[MT$group == i]))
+  }
+  outliers.group
+  # Therer are no outliers common in each group. 
+  
+  
+  
+  
+```
+
+## Read Participant information excel sheet and format to join with other data types. 
+```{r}
+ses_df <- readxl::read_xlsx("Participant_info.xlsx")
+
+# Match subjects to list of subjects 
+matches <- lapply(ses_df$`Subject #`, function(x) grep(x, temp, fixed = TRUE))
+
+```
+## Plot statistics using sex, and age to see trends
+```{r}
+# Plot the ROI's by age and sex. 
+  
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Diagnostic tools to check if all assumptions are met for each type of  
+
