@@ -12,10 +12,23 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Import data
 ```{r import data}
 # Use R to get a list of files 
-temp <- list.files(path = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Automated/wave1", pattern = "*.txt", full.names = TRUE)
+wave1 <- list.files(path = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1", pattern = "*.txt", full.names = TRUE)
 # Create list of data frames
-myfiles = lapply(temp,read.delim)
+myfiles = lapply(wave1,read.delim)
 
+```
+
+By Mark
+
+```{r}
+map_df(subject_to_load, ~ read.delim(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", .x, "-anat.roiwise.stats.txt")) %>% mutate(subject = .x)) -> combine_df
+combine_df %>% 
+  select(subject, ROI_ID, GM_Volume.mm.3., WM_Volume.mm.3., Mean_Thickness.mm.) %>% 
+  filter(ROI_ID >= 500 & ROI_ID < 600) %>% 
+  gather(key = "var", value = "value", 3:5) %>% 
+  mutate()  %>%   # recode ROI_ID
+  unite("var_combined", ROI_ID, var) %>% 
+  spread(var_combined, value) %>% 
 ```
 
 ## Clean data - At a later point generalize to full data set
@@ -171,19 +184,31 @@ outliers.common <- intersect(intersect(unique(GM$outliers_ind),unique(WM$outlier
   outliers.group
   # Therer are no outliers common in each group. 
   
-  
-  
-  
 ```
 
 ## Read Participant information excel sheet and format to join with other data types. 
 ```{r}
 ses_df <- readxl::read_xlsx("Participant_info.xlsx")
 
-# Match subjects ID's to order of subjects in temp (wave 1)
-matches <- lapply(ses_df$`Subject #`, function(x) grep(x, temp, fixed = TRUE))
+ses_df %>% 
+  mutate(wave1_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", `Subject #`, "-anat.roiwise.stats.txt")), 
+         wave2_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2/", `Subject #`, "_T1w_1m.roiwise.stats.txt"))) %>% 
+  filter(wave1_data, wave2_data) %>% 
+  pull(`Subject #`) -> subject_to_load
 
+wave2 <- list.files(path = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2", 
+                    pattern = "*.txt", 
+                    full.names = TRUE)
 
+# Match subjects ID's to order of subjects in wave1
+matches1 <- lapply(ses_df$`Subject #`, function(x) grep(x, wave1, fixed = TRUE))
+
+matches2 <- lapply(ses_df$`Subject #`, function(x) grep(x, wave2, fixed = TRUE))
+
+# get subject index to get subjects in common for longitudinal analysis
+ind2 <- as.logical(lapply(matches2, function(x) {!identical(x,integer(0))}))
+ind1 <- as.logical(lapply(matches1, function(x) {!identical(x,integer(0))}))
+common <- ind1 & ind2
 ```
 ## Plot statistics using sex, and age to see trends
 ```{r}
