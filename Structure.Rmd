@@ -18,18 +18,9 @@ myfiles = lapply(wave1,read.delim)
 
 ```
 
-By Mark
 
-```{r}
-map_df(subject_to_load, ~ read.delim(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", .x, "-anat.roiwise.stats.txt")) %>% mutate(subject = .x)) -> combine_df
-combine_df %>% 
-  select(subject, ROI_ID, GM_Volume.mm.3., WM_Volume.mm.3., Mean_Thickness.mm.) %>% 
-  filter(ROI_ID >= 500 & ROI_ID < 600) %>% 
-  gather(key = "var", value = "value", 3:5) %>% 
-  mutate()  %>%   # recode ROI_ID
-  unite("var_combined", ROI_ID, var) %>% 
-  spread(var_combined, value) %>% 
-```
+
+
 
 ## Clean data - At a later point generalize to full data set
 ```{r, clean data}
@@ -105,7 +96,7 @@ I need to check which subjects are outliers and which subjects are outliers in e
 
 ## Create a dataframe for each ROI and each region and then compute outliers.
 # use reshape from stats package. This is designed to convert data to a wide format when it is listed in a long format. 
-```{r outliers}
+```{r boxplots}
 
 # Calculate statsitics for just the few ROI's of interest primarily in the Insula. 
 
@@ -125,7 +116,9 @@ wm <- myfiles.wide[seq(from = 4, to = length(myfiles.wide), by = 3)]
 gm.boxplot <- boxplot(gm)
 mt.boxplot <- boxplot(mt)
 wm.boxplot <- boxplot(wm)
+```
 
+``` {r outliers}
 # outliers for GM
 # Doesnt quite work yet. But it should work
 # get_outlier_subjects <- function(data,outliers) {
@@ -184,17 +177,56 @@ outliers.common <- intersect(intersect(unique(GM$outliers_ind),unique(WM$outlier
   outliers.group
   # Therer are no outliers common in each group. 
   
+  # Find the max and min of each group outlier. Group 7 ROI - Right post Insula 
+rPI_min <-match(signif(gm.boxplot$out[gm.boxplot$group == 7], 7),
+      signif(gm[,7], 7))[which.min(gm.boxplot$out[gm.boxplot$group ==7])]
+# [1] 14
+rPI_max <- match(signif(gm.boxplot$out[gm.boxplot$group == 7], 7),
+      signif(gm[,7], 7))[which.max(gm.boxplot$out[gm.boxplot$group ==7])]
+#[1] 20
+# GM Group 1 outliers - right Insula
+rI_min <- match(signif(gm.boxplot$out[gm.boxplot$group == 1], 7),
+      signif(gm[,1], 7))[which.min(gm.boxplot$out[gm.boxplot$group ==1])]
+# [1] 48
+rI_max <- match(signif(gm.boxplot$out[gm.boxplot$group == 1], 7),
+      signif(gm[,1], 7))[which.max(gm.boxplot$out[gm.boxplot$group ==1])]
+#[1] 8
+# GM Group 2 outliers - left Insula
+lI_min <- match(signif(gm.boxplot$out[gm.boxplot$group == 2], 7),
+      signif(gm[,2], 7))[which.min(gm.boxplot$out[gm.boxplot$group ==2])]
+# [1] 7
+lI_max <- match(signif(gm.boxplot$out[gm.boxplot$group == 2], 7),
+      signif(gm[,2], 7))[which.max(gm.boxplot$out[gm.boxplot$group ==2])]
+#[1] 35
+
+
+
+  
 ```
 
 ## Read Participant information excel sheet and format to join with other data types. 
 ```{r}
+library(tidyverse)
+# Load participant information
 ses_df <- readxl::read_xlsx("Participant_info.xlsx")
 
-ses_df %>% 
+# Get subjects that are in both timepoints
+subject_to_load <- ses_df %>% 
   mutate(wave1_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", `Subject #`, "-anat.roiwise.stats.txt")), 
          wave2_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2/", `Subject #`, "_T1w_1m.roiwise.stats.txt"))) %>% 
   filter(wave1_data, wave2_data) %>% 
-  pull(`Subject #`) -> subject_to_load
+  pull(`Subject #`) 
+
+# Get information for subjects that are in both timepoints
+participant_info <- ses_df %>% 
+  mutate(wave1_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", `Subject #`, "-anat.roiwise.stats.txt")), 
+         wave2_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2/", `Subject #`, "_T1w_1m.roiwise.stats.txt"))) %>% 
+  filter(wave1_data, wave2_data) %>%
+  select(subject = `Subject #`, culture = starts_with("culture"), 
+         gender = starts_with("gender"), starts_with("age")) %>%
+  rename(age1 = "age at wave 1", age2 = "age at wave 2")
+
+  
 
 wave2 <- list.files(path = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2", 
                     pattern = "*.txt", 
@@ -210,6 +242,29 @@ ind2 <- as.logical(lapply(matches2, function(x) {!identical(x,integer(0))}))
 ind1 <- as.logical(lapply(matches1, function(x) {!identical(x,integer(0))}))
 common <- ind1 & ind2
 ```
+
+```{r}
+# Code written by mark using tidyverse package to get data into wide format. 
+# This code gets wave 1 data into the wide format using the same subjects that are in wave 2 as well.
+combine_df <- map_df(subject_to_load, 
+                     ~ read.delim(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", .x, "-anat.roiwise.stats.txt")) %>% 
+                       mutate(subject = .x)) 
+combined <- combine_df %>% 
+  mutate(total_Vol = GM_Volume.mm.3. + WM_Volume.mm.3. + CSF_Volume.mm.3.) %>%
+  select(subject, ROI_ID, Mean_Thickness.mm., GM_Volume.mm.3., 
+         WM_Volume.mm.3., CSF_Volume.mm.3., total_Vol ) %>% 
+  filter(ROI_ID >= 500 & ROI_ID < 600) %>%
+  mutate_at(c("GM_Volume.mm.3.", "WM_Volume.mm.3.", "CSF_Volume.mm.3."), 
+            ~./total_Vol) %>%
+  select(subject, ROI_ID, Mean_Thickness.mm., GM_Volume.mm.3., WM_Volume.mm.3., CSF_Volume.mm.3.) %>%
+  gather(key = "var", value = "value", 3:6) %>% 
+  #mutate()  %>%   # recode ROI_ID
+  unite("var_combined", ROI_ID, var) %>% 
+  spread(var_combined, value)  
+
+# Now add wave 2 to the data set. 
+```
+
 ## Plot statistics using sex, and age to see trends
 ```{r}
 # Plot the ROI's by age and sex. 
