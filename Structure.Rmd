@@ -206,7 +206,7 @@ lI_max <- match(signif(gm.boxplot$out[gm.boxplot$group == 2], 7),
 ```
 
 ## Read Participant information excel sheet and format to join with other data types. 
-```{r}
+```{r participant info}
 library(tidyverse)
 # Load participant information
 ses_df <- readxl::read_xlsx("Participant_info.xlsx")
@@ -238,7 +238,7 @@ combine_df <- map_df(subject_to_load,
                        mutate(subject = .x)) 
 
 # Wave 1 wide format data
-combined <- combine_df %>% 
+wave1_wide <- combine_df %>% 
   # Get the total brain volume for each suject
   mutate(total_Vol = GM_Volume.mm.3. + WM_Volume.mm.3. + CSF_Volume.mm.3.) %>%
   # Get hemisphere for ROI
@@ -262,20 +262,80 @@ combined <- combine_df %>%
          WM =  WM_Volume.mm.3., CSF = CSF_Volume.mm.3.) %>%
   gather(key = "var", value = "value", 4:7) %>% 
   #mutate()  %>%   # recode ROI_ID
-  unite("var_combined", hemisphere, region, var) %>% 
-  spread(var_combined, value)  
+  unite("var_wave1_wide", hemisphere, region, var) %>% 
+  spread(var_wave1_wide, value)  
 
 # Show boxplots
 
-csf = boxplot(ylab = "normalized Volume a.u.", combined[seq(from=2, to=dim(combined)[2], by=4)])
-gM = boxplot(ylab = "normalized Volume a.u.", combined[seq(from=3, to=dim(combined)[2], by=4)])
-mT = boxplot(ylab = "normalized Volume a.u.", combined[seq(from=4, to=dim(combined)[2], by=4)])
-wM = boxplot(ylab = "normalized Volume a.u.", combined[seq(from=5, to=dim(combined)[2], by=4)])
+csf = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=2, to=dim(wave1_wide)[2], by=4)])
+gM = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=3, to=dim(wave1_wide)[2], by=4)])
+mT = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=4, to=dim(wave1_wide)[2], by=4)])
+wM = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=5, to=dim(wave1_wide)[2], by=4)])
 
 # Now add wave 2 to the data set.
   
 
 ```
+
+# Get outliers for same regions as before with normalized brain volumes
+```{r normalized outliers}
+  # Find the max and min of each measure in all Insula regions.
+
+csf <- wave1_wide[seq(from = 2, to = dim(wave1_wide)[2], by = 4)]
+gm <- wave1_wide[seq(from = 3, to = dim(wave1_wide)[2], by = 4)]
+mt <- wave1_wide[seq(from = 4, to = dim(wave1_wide)[2], by = 4)]
+wm <- wave1_wide[seq(from = 5, to = dim(wave1_wide)[2], by = 4)]
+
+# Turn this into a function later on
+# try map_df function
+
+# matcher <- function (boxObj,data){
+#   hits = tibble::tibble(.rows = 2)
+#   for(i in seq(from=1, to=length(boxObj$group), by=1)){
+#          hits[[1,i]] = match(signif(boxObj$out[boxObj$group == i], 7),
+#                       signif(data[,i], 7))[which.min(boxObj$out[boxObj$group == i])]
+#          hits[[2,i]] = match(signif(boxObj$out[boxObj$group == i], 7),
+#                       signif(data[,i], 7))[which.max(boxObj$out[boxObj$group == i])]
+#          }
+#   return(hits)
+#   }
+
+# map_df(1:8, function (i) {match(signif(gM$out[gM$group == i], 7),
+#                      signif(data[,i], 7))[which.max(gM$out[gM$group == i])]})
+
+# Group 7 ROI - Right post Insula 
+rPI_min <-match(signif(gM$out[gM$group == 7], 7),
+      signif(gm[,7], 7))[which.min(gM$out[gM$group ==7])]
+rPI_max <- match(signif(gM$out[gM$group == 7], 7),
+      signif(gm[,7], 7))[which.max(gM$out[gM$group ==7])]
+
+# GM Group 3 outliers - left post Insula
+lPI_min <- match(signif(gM$out[gM$group == 3], 7),
+      signif(gm[,3], 7))[which.min(gM$out[gM$group ==3])]
+lPI_max <- match(signif(gM$out[gM$group == 3], 7),
+      signif(gm[,3], 7))[which.max(gM$out[gM$group ==3])]
+
+# GM Group 1 outliers - left dorsal anterior Insula
+ldAI_min <- match(signif(gM$out[gM$group == 1], 7),
+      signif(gm[,1], 7))[which.min(gM$out[gM$group ==1])]
+ldAI_max <- match(signif(gM$out[gM$group == 1], 7),
+      signif(gm[,1], 7))[which.max(gM$out[gM$group ==1])]
+
+# GM Group 5 outliers - right dorsal anterior Insula
+rdAI_min <- match(signif(gM$out[gM$group == 5], 7),
+      signif(gm[,5], 7))[which.min(gM$out[gM$group ==5])]
+rdAI_max <- match(signif(gM$out[gM$group == 5], 7),
+      signif(gm[,5], 7))[which.max(gM$out[gM$group ==5])]
+
+# GM Group 2 outliers - left Insula
+lI_min_lI <- match(signif(gM$out[gM$group == 2], 7),
+      signif(gm[,2], 7))[which.min(gM$out[gM$group == 2])]
+lI_max <- match(signif(gM$out[gM$group == 2], 7),
+      signif(gm[,2], 7))[which.max(gM$out[gM$group == 2])]
+
+
+```
+
 
 ## Plot statistics using sex, and age to see trends
 ```{r}
