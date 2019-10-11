@@ -100,7 +100,7 @@ I need to check which subjects are outliers and which subjects are outliers in e
 
 # Calculate statsitics for just the few ROI's of interest primarily in the Insula. 
 
-## TO DO> Build this tool to become a part of the R statistics toolbox. Use this tool to allow the user to select which statistics they wish to run and on which tools. These tools here will allow the user to take statitistics from BrainSuite. 
+## TO DO> Build this tool to become a part of the R statistics toolbox. Use this tool to allow the user to select which statistics they wish to run and on which tools. These tools here will allow the user to take statistics from BrainSuite. 
 library(stats)
 myfiles.wide <- stats::reshape(data = myfiles.long, 
                                direction = "wide", 
@@ -113,6 +113,7 @@ mt <- myfiles.wide[seq(from = 2, to = length(myfiles.wide), by = 3)]
 gm <- myfiles.wide[seq(from = 3, to = length(myfiles.wide), by = 3)]
 wm <- myfiles.wide[seq(from = 4, to = length(myfiles.wide), by = 3)]
 
+# plot boxplots using base package
 gm.boxplot <- boxplot(gm)
 mt.boxplot <- boxplot(mt)
 wm.boxplot <- boxplot(wm)
@@ -227,42 +228,53 @@ participant_info <- ses_df %>%
   rename(age1 = "age at wave 1", age2 = "age at wave 2")
 
   
-
-wave2 <- list.files(path = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2", 
-                    pattern = "*.txt", 
-                    full.names = TRUE)
-
-# Match subjects ID's to order of subjects in wave1
-matches1 <- lapply(ses_df$`Subject #`, function(x) grep(x, wave1, fixed = TRUE))
-
-matches2 <- lapply(ses_df$`Subject #`, function(x) grep(x, wave2, fixed = TRUE))
-
-# get subject index to get subjects in common for longitudinal analysis
-ind2 <- as.logical(lapply(matches2, function(x) {!identical(x,integer(0))}))
-ind1 <- as.logical(lapply(matches1, function(x) {!identical(x,integer(0))}))
-common <- ind1 & ind2
 ```
 
-```{r}
+```{r wave_1_wide}
 # Code written by mark using tidyverse package to get data into wide format. 
 # This code gets wave 1 data into the wide format using the same subjects that are in wave 2 as well.
 combine_df <- map_df(subject_to_load, 
                      ~ read.delim(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", .x, "-anat.roiwise.stats.txt")) %>% 
                        mutate(subject = .x)) 
+
+# Wave 1 wide format data
 combined <- combine_df %>% 
+  # Get the total brain volume for each suject
   mutate(total_Vol = GM_Volume.mm.3. + WM_Volume.mm.3. + CSF_Volume.mm.3.) %>%
+  # Get hemisphere for ROI
+  # Wanted a general function for this, This is todo later. 
+  mutate(hemisphere = ifelse( ROI_ID %in% c("500", "510", "520", "530"), 
+                            "right", "left")) %>%
+  # Save only variables I need
   select(subject, ROI_ID, Mean_Thickness.mm., GM_Volume.mm.3., 
-         WM_Volume.mm.3., CSF_Volume.mm.3., total_Vol ) %>% 
+         WM_Volume.mm.3., CSF_Volume.mm.3., total_Vol, hemisphere ) %>% 
+  # subset dataframe by ROI_ID
   filter(ROI_ID >= 500 & ROI_ID < 600) %>%
+  # add region to the data frame for ROI
+  mutate(region = factor(substr(ROI_ID, 1, 2),
+                        labels = c("In", "dAI", "vAI", "postI"))) %>%
+  # scale brain measures by total volume
   mutate_at(c("GM_Volume.mm.3.", "WM_Volume.mm.3.", "CSF_Volume.mm.3."), 
             ~./total_Vol) %>%
-  select(subject, ROI_ID, Mean_Thickness.mm., GM_Volume.mm.3., WM_Volume.mm.3., CSF_Volume.mm.3.) %>%
-  gather(key = "var", value = "value", 3:6) %>% 
+  # Drop Total volume and ROI, and rename measurement variables. 
+  select(subject, hemisphere, region, 
+         MT = Mean_Thickness.mm., GM = GM_Volume.mm.3., 
+         WM =  WM_Volume.mm.3., CSF = CSF_Volume.mm.3.) %>%
+  gather(key = "var", value = "value", 4:7) %>% 
   #mutate()  %>%   # recode ROI_ID
-  unite("var_combined", ROI_ID, var) %>% 
+  unite("var_combined", hemisphere, region, var) %>% 
   spread(var_combined, value)  
 
-# Now add wave 2 to the data set. 
+# Show boxplots
+
+csf = boxplot(ylab = "normalized Volume a.u.", combined[seq(from=2, to=dim(combined)[2], by=4)])
+gM = boxplot(ylab = "normalized Volume a.u.", combined[seq(from=3, to=dim(combined)[2], by=4)])
+mT = boxplot(ylab = "normalized Volume a.u.", combined[seq(from=4, to=dim(combined)[2], by=4)])
+wM = boxplot(ylab = "normalized Volume a.u.", combined[seq(from=5, to=dim(combined)[2], by=4)])
+
+# Now add wave 2 to the data set.
+  
+
 ```
 
 ## Plot statistics using sex, and age to see trends
