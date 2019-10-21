@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 ```
 
 ## Import data
@@ -56,7 +57,7 @@ str(myfiles.long)
 ## Get Descriptive Statistics
 
 
-```{r}
+```{r ggplot boxplot}
 ## Null Hypothesis is that there is no group difference in mean cortical thickness. alternative Hypothesis is that there is a group difference in mean cortical thickness. 
 
 ## Null Hypothesis is that there is no difference of the mean cortical thickness between the two groups of students. Alternative hypothesis is that there is a difference of the mean cortical thickness between the two groups of students. 
@@ -96,28 +97,77 @@ I need to check which subjects are outliers and which subjects are outliers in e
 
 ## Create a dataframe for each ROI and each region and then compute outliers.
 # use reshape from stats package. This is designed to convert data to a wide format when it is listed in a long format. 
-```{r boxplots}
+```{r Wave1_boxplots}
 
 # Calculate statsitics for just the few ROI's of interest primarily in the Insula. 
 
 ## TO DO> Build this tool to become a part of the R statistics toolbox. Use this tool to allow the user to select which statistics they wish to run and on which tools. These tools here will allow the user to take statistics from BrainSuite. 
-library(stats)
-myfiles.wide <- stats::reshape(data = myfiles.long, 
-                               direction = "wide", 
-                               timevar = "ROI", 
-                               idvar = "L1", 
-                               drop = c("variable","region","hemisphere")
-                               )
-str(myfiles.wide)
-mt <- myfiles.wide[seq(from = 2, to = length(myfiles.wide), by = 3)]
-gm <- myfiles.wide[seq(from = 3, to = length(myfiles.wide), by = 3)]
-wm <- myfiles.wide[seq(from = 4, to = length(myfiles.wide), by = 3)]
+# library(stats)
+# myfiles.wide <- stats::reshape(data = myfiles.long, 
+#                                direction = "wide", 
+#                                timevar = "ROI", 
+#                                idvar = "L1", 
+#                                drop = c("variable","region","hemisphere")
+#                                )
+# str(myfiles.wide)
+# mt <- myfiles.wide[seq(from = 2, to = length(myfiles.wide), by = 3)]
+# gm <- myfiles.wide[seq(from = 3, to = length(myfiles.wide), by = 3)]
+# wm <- myfiles.wide[seq(from = 4, to = length(myfiles.wide), by = 3)]
 
-# plot boxplots using base package
-gm.boxplot <- boxplot(gm)
-mt.boxplot <- boxplot(mt)
-wm.boxplot <- boxplot(wm)
+
+combine_df <- map_df(subject_to_load, 
+                     ~ read.delim(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", .x, "-anat.roiwise.stats.txt")) %>% 
+                       mutate(subject = .x)) 
+
+
+library(tidyverse)
+wave1_wide <- combine_df %>% 
+  # Get hemisphere for ROI
+  # Wanted a general function for this, This is todo later. 
+  mutate(hemisphere = ifelse( ROI_ID %in% c("500", "510", "520", "530"), 
+                            "right", "left")) %>%
+  # Save only variables I need
+  select(subject, ROI_ID, Mean_Thickness.mm., GM_Volume.mm.3., 
+         WM_Volume.mm.3., CSF_Volume.mm.3., hemisphere ) %>% 
+  # subset dataframe by ROI_ID
+  filter(ROI_ID >= 500 & ROI_ID < 600) %>%
+  # add region to the data frame for ROI
+  mutate(region = factor(substr(ROI_ID, 1, 2),
+                        labels = c("In", "dAI", "vAI", "postI"))) %>%
+  # Drop Total volume and ROI, and rename measurement variables. 
+  select(subject, hemisphere, region, 
+         MT = Mean_Thickness.mm., GM = GM_Volume.mm.3., 
+         WM =  WM_Volume.mm.3., CSF = CSF_Volume.mm.3.) # %>%
+
+p <- ggplot(wave1_wide, mapping = aes(y = GM)) +
+             geom_boxplot() + 
+             geom_jitter( aes(x = 0), width = 0.1, height = 0, 
+                         size = .3) +   # add a plot layer with points
+                                        # position = position_jitter(width = 0.1), 
+             facet_grid(region ~ hemisphere , scales = "free") + 
+             coord_flip()
+show(p) 
+#   gather(key = "var", value = "value", 4:7) %>% 
+#   #mutate()  %>%   # recode ROI_ID
+#   unite("var_wave1_wide", hemisphere, region, var) %>% 
+#   spread(var_wave1_wide, value)  
+# 
+# # Get measures per subject
+# csf <- wave1_wide[seq(from = 2, to = length(wave1_wide), by = 4)]
+# gm <-wave1_wide[seq(from = 3, to = length(wave1_wide), by = 4)]
+# mt <- wave1_wide[seq(from = 4, to = length(wave1_wide), by = 4)]
+# wm <- wave1_wide[seq(from = 5, to = length(wave1_wide), by = 4)]
+# 
+# 
+# # plot boxplots using base packages
+# csf.boxplot <- boxplot(ylab = "(millimeters)^3", csf)
+# gm.boxplot <- boxplot(ylab = "(millimeters)^3", gm)
+# mt.boxplot <- boxplot(ylab = "(millimeters)^3", mt)
+# wm.boxplot <- boxplot(ylab = "(millimeters)^3", wm)
+
 ```
+
+
 
 ``` {r outliers}
 # outliers for GM
@@ -231,18 +281,20 @@ participant_info <- ses_df %>%
 ```
 
 ```{r wave_1_wide}
-# Code written by mark using tidyverse package to get data into wide format. 
-# This code gets wave 1 data into the wide format using the same subjects that are in wave 2 as well.
-combine_df <- map_df(subject_to_load, 
-                     ~ read.delim(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", .x, "-anat.roiwise.stats.txt")) %>% 
-                       mutate(subject = .x)) 
+# This function loads subjects' BrainSuite statisics file using paste0 to create the fullpath for each subject. Function uses map_df to apply the read.delim function to each file, creating a long format of data. 
+load_subjects <- function (subjectID, path, extension) {
+  map_df(subjectID, 
+         ~ read.delim(paste0(path, .x, extension)) %>% 
+           mutate(subject = .x))
+}
 
-# Wave 1 wide format data
-wave1_wide <- combine_df %>% 
-  # Get the total brain volume for each suject
+# Function to get inusla regions and other BrainSuite measurements
+# TO DO: Get a general function to map ROI ~ (hemisphere | region)
+get_Insula_common_subs <- function (x, time) {
+  x %>%
+     # Get the total brain volume for each suject
   mutate(total_Vol = GM_Volume.mm.3. + WM_Volume.mm.3. + CSF_Volume.mm.3.) %>%
   # Get hemisphere for ROI
-  # Wanted a general function for this, This is todo later. 
   mutate(hemisphere = ifelse( ROI_ID %in% c("500", "510", "520", "530"), 
                             "right", "left")) %>%
   # Save only variables I need
@@ -261,10 +313,34 @@ wave1_wide <- combine_df %>%
          MT = Mean_Thickness.mm., GM = GM_Volume.mm.3., 
          WM =  WM_Volume.mm.3., CSF = CSF_Volume.mm.3.) %>%
   gather(key = "var", value = "value", 4:7) %>% 
-  #mutate()  %>%   # recode ROI_ID
-  unite("var_wave1_wide", hemisphere, region, var) %>% 
-  spread(var_wave1_wide, value)  
+  unite("var_wide", hemisphere, region, var) %>% 
+  spread(var_wide, value) %>%
+  mutate(time = time)
+}
 
+# Load the subjects
+wave_1 <- load_subjects(subject_to_load,
+                        "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub",
+                        "-anat.roiwise.stats.txt")
+
+wave_2 <- load_subjects(subject_to_load,
+                        "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2/",
+                        "_T1w_1m.roiwise.stats.txt")
+
+# Get Insula from common subjects
+wave1_wide_normalize <- get_Insula_common_subs(wave_1, 1)
+wave2_wide_normalize <- get_Insula_common_subs(wave_2, 2)
+
+# Create wide data format for both timepoints
+merged <- merge(wave1_wide_normalize, wave2_wide_normalize, all = TRUE) %>% 
+  gather(key = "var", value = "value" , 2:33) %>% 
+  unite("var_wide",var,time) %>% 
+  spread(var_wide,value)
+
+
+```
+
+```{r boxplot_wave1}
 # Show boxplots
 
 csf = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=2, to=dim(wave1_wide)[2], by=4)])
@@ -279,15 +355,14 @@ wM = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=5, to=dim(wave
 
 # Get outliers for same regions as before with normalized brain volumes
 ```{r normalized outliers}
-  # Find the max and min of each measure in all Insula regions.
-
-csf <- wave1_wide[seq(from = 2, to = dim(wave1_wide)[2], by = 4)]
-gm <- wave1_wide[seq(from = 3, to = dim(wave1_wide)[2], by = 4)]
-mt <- wave1_wide[seq(from = 4, to = dim(wave1_wide)[2], by = 4)]
-wm <- wave1_wide[seq(from = 5, to = dim(wave1_wide)[2], by = 4)]
+# Extract the brain measures into their own data set. 
+csf <- wave1_wide_normalize[seq(from = 2, to = dim(wave1_wide_normalize)[2], by = 4)]
+gm <- wave1_wide_normalize[seq(from = 3, to = dim(wave1_wide_normalize)[2], by = 4)]
+mt <- wave1_wide_normalize[seq(from = 4, to = dim(wave1_wide_normalize)[2], by = 4)]
+wm <- wave1_wide_normalize[seq(from = 5, to = dim(wave1_wide_normalize)[2], by = 4)]
 
 # Turn this into a function later on
-# try map_df function
+# 
 
 # matcher <- function (boxObj,data){
 #   hits = tibble::tibble(.rows = 2)
@@ -299,9 +374,11 @@ wm <- wave1_wide[seq(from = 5, to = dim(wave1_wide)[2], by = 4)]
 #          }
 #   return(hits)
 #   }
-
+# try map_df function
 # map_df(1:8, function (i) {match(signif(gM$out[gM$group == i], 7),
 #                      signif(data[,i], 7))[which.max(gM$out[gM$group == i])]})
+
+# Find the max and min of each measure in all Insula regions.
 
 # Group 7 ROI - Right post Insula 
 rPI_min <-match(signif(gM$out[gM$group == 7], 7),
