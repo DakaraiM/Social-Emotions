@@ -275,12 +275,12 @@ participant_info <- ses_df %>%
   filter(wave1_data, wave2_data) %>%
   select(subject = `Subject #`, culture = starts_with("culture"), 
          gender = starts_with("gender"), starts_with("age")) %>%
-  rename(age1 = "age at wave 1", age2 = "age at wave 2")
+  rename(age_1 = "age at wave 1", age_2 = "age at wave 2")
 
   
 ```
 
-```{r wave_1_wide}
+```{r merged data set}
 # This function loads subjects' BrainSuite statisics file using paste0 to create the fullpath for each subject. Function uses map_df to apply the read.delim function to each file, creating a long format of data. 
 load_subjects <- function (subjectID, path, extension) {
   map_df(subjectID, 
@@ -335,7 +335,10 @@ wave2_wide_normalize <- get_Insula_common_subs(wave_2, 2)
 merged <- merge(wave1_wide_normalize, wave2_wide_normalize, all = TRUE) %>% 
   gather(key = "var", value = "value" , 2:33) %>% 
   unite("var_wide",var,time) %>% 
-  spread(var_wide,value)
+  spread(var_wide,value) %>%
+  merge(participant_info)
+
+# Add parcipant information to the merged data set
 
 
 ```
