@@ -10,254 +10,12 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
 
-## Import data
-```{r import data}
-# Use R to get a list of files 
-wave1 <- list.files(path = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1", pattern = "*.txt", full.names = TRUE)
-# Create list of data frames
-myfiles = lapply(wave1,read.delim)
-
-```
-
-
-
-
-
-## Clean data - At a later point generalize to full data set
-```{r, clean data}
-       
-# In each data frame, create a subset data frame for the ROI and the measurments of interest. 
-# Get Insula ROI's
-myfiles.ROI <-lapply(myfiles, function(x) {subset.data.frame(x =x, subset = ROI_ID >= 500 & ROI_ID < 600, select = c(ROI_ID,Mean_Thickness.mm.,GM_Volume.mm.3.,WM_Volume.mm.3.))})
-
-# Melt the data to create a long data frame suitable for casting 
-library(reshape2)
-
-# Data is formatted so that each id.vars are the variables measured in each ROI, which is the measurment variable with values equal to the regoin of interest.
-myfiles.long <- melt(data = myfiles.ROI, 
-                     id.vars = c("Mean_Thickness.mm.", "GM_Volume.mm.3.", "WM_Volume.mm.3."),
-                     measure.vars = "ROI_ID", 
-                     value.name = "ROI")
-
-# Make sure the ROI's are categrical.
-myfiles.long$ROI <- myfiles.long$ROI <- as.factor(myfiles.long$ROI)
-
-# Separate the hemispheres
-myfiles.long$hemisphere <- ifelse(myfiles.long$ROI %in% c("500", "510", "520", "530"), 
-                            "right", "left")
-myfiles.long$region <- substr(myfiles.long$ROI, 1, 2)
-
-# Create a region label
-myfiles.long$region <- factor(myfiles.long$region, 
-                              labels = c("Insula", "dA-Insula", "vA-Insula", "post-Insula"))
-str(myfiles.long)
-
-```
-
-## Get Descriptive Statistics
-
-
-```{r ggplot boxplot}
-## Null Hypothesis is that there is no group difference in mean cortical thickness. alternative Hypothesis is that there is a group difference in mean cortical thickness. 
-
-## Null Hypothesis is that there is no difference of the mean cortical thickness between the two groups of students. Alternative hypothesis is that there is a difference of the mean cortical thickness between the two groups of students. 
-library(ggplot2)
-
-# Show box plot of mean cortical thickness in each ROI
-p <- ggplot(myfiles.long, mapping = aes(y = Mean_Thickness.mm.)) +
-             geom_boxplot() +
-             geom_jitter(aes(x = 0), width = 0.1, height = 0, 
-                         size = .3) +   # add a plot layer with points
-             facet_grid(region ~ hemisphere, scales = "free") +
-             coord_flip()
-  
-show(p)
-
-# Show box plot of WM Volume in each ROI
-p <- ggplot(myfiles.long, mapping = aes(y = WM_Volume.mm.3.)) +
-             geom_boxplot() +
-             geom_jitter(aes(x = 0), width = 0.1, height = 0, 
-                         size = .3) +   # add a plot layer with points
-             facet_grid(region ~ hemisphere, scales = "free") + 
-             coord_flip()
-show(p)
-
-# Show box plot of GM Volume in each ROI
-p <- ggplot(myfiles.long, mapping = aes(y = GM_Volume.mm.3.)) +
-             geom_boxplot() + 
-             geom_jitter( aes(x = 0), width = 0.1, height = 0, 
-                         size = .3) +   # add a plot layer with points
-                                        # position = position_jitter(width = 0.1), 
-             facet_grid(region ~ hemisphere , scales = "free") + 
-             coord_flip()
-show(p)
-```
+## Get Descriptive Statistics - Method validation
 I need to check which subjects are outliers and which subjects are outliers in each region. It appears as though there may be a functional-structure relationship in these areas of the brain. Questions from lab meeting are: Are these brain regions actually measures we can use? Are they representative of the population and can we say these range of values is acceptable for developing adolescents? 
-
-
-## Create a dataframe for each ROI and each region and then compute outliers.
-# use reshape from stats package. This is designed to convert data to a wide format when it is listed in a long format. 
-```{r Wave1_boxplots}
-
-# Calculate statsitics for just the few ROI's of interest primarily in the Insula. 
-
-## TO DO> Build this tool to become a part of the R statistics toolbox. Use this tool to allow the user to select which statistics they wish to run and on which tools. These tools here will allow the user to take statistics from BrainSuite. 
-# library(stats)
-# myfiles.wide <- stats::reshape(data = myfiles.long, 
-#                                direction = "wide", 
-#                                timevar = "ROI", 
-#                                idvar = "L1", 
-#                                drop = c("variable","region","hemisphere")
-#                                )
-# str(myfiles.wide)
-# mt <- myfiles.wide[seq(from = 2, to = length(myfiles.wide), by = 3)]
-# gm <- myfiles.wide[seq(from = 3, to = length(myfiles.wide), by = 3)]
-# wm <- myfiles.wide[seq(from = 4, to = length(myfiles.wide), by = 3)]
-
-
-combine_df <- map_df(subject_to_load, 
-                     ~ read.delim(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", .x, "-anat.roiwise.stats.txt")) %>% 
-                       mutate(subject = .x)) 
-
-
-library(tidyverse)
-wave1_wide <- combine_df %>% 
-  # Get hemisphere for ROI
-  # Wanted a general function for this, This is todo later. 
-  mutate(hemisphere = ifelse( ROI_ID %in% c("500", "510", "520", "530"), 
-                            "right", "left")) %>%
-  # Save only variables I need
-  select(subject, ROI_ID, Mean_Thickness.mm., GM_Volume.mm.3., 
-         WM_Volume.mm.3., CSF_Volume.mm.3., hemisphere ) %>% 
-  # subset dataframe by ROI_ID
-  filter(ROI_ID >= 500 & ROI_ID < 600) %>%
-  # add region to the data frame for ROI
-  mutate(region = factor(substr(ROI_ID, 1, 2),
-                        labels = c("In", "dAI", "vAI", "postI"))) %>%
-  # Drop Total volume and ROI, and rename measurement variables. 
-  select(subject, hemisphere, region, 
-         MT = Mean_Thickness.mm., GM = GM_Volume.mm.3., 
-         WM =  WM_Volume.mm.3., CSF = CSF_Volume.mm.3.) # %>%
-
-p <- ggplot(wave1_wide, mapping = aes(y = GM)) +
-             geom_boxplot() + 
-             geom_jitter( aes(x = 0), width = 0.1, height = 0, 
-                         size = .3) +   # add a plot layer with points
-                                        # position = position_jitter(width = 0.1), 
-             facet_grid(region ~ hemisphere , scales = "free") + 
-             coord_flip()
-show(p) 
-#   gather(key = "var", value = "value", 4:7) %>% 
-#   #mutate()  %>%   # recode ROI_ID
-#   unite("var_wave1_wide", hemisphere, region, var) %>% 
-#   spread(var_wave1_wide, value)  
-# 
-# # Get measures per subject
-# csf <- wave1_wide[seq(from = 2, to = length(wave1_wide), by = 4)]
-# gm <-wave1_wide[seq(from = 3, to = length(wave1_wide), by = 4)]
-# mt <- wave1_wide[seq(from = 4, to = length(wave1_wide), by = 4)]
-# wm <- wave1_wide[seq(from = 5, to = length(wave1_wide), by = 4)]
-# 
-# 
-# # plot boxplots using base packages
-# csf.boxplot <- boxplot(ylab = "(millimeters)^3", csf)
-# gm.boxplot <- boxplot(ylab = "(millimeters)^3", gm)
-# mt.boxplot <- boxplot(ylab = "(millimeters)^3", mt)
-# wm.boxplot <- boxplot(ylab = "(millimeters)^3", wm)
-
-```
-
-
-
-``` {r outliers}
-# outliers for GM
-# Doesnt quite work yet. But it should work
-# get_outlier_subjects <- function(data,outliers) {
-#   out <- c()
-#   for (i in 1:ncol(data)){
-#     out <- as.list(out,data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
-#                                                        signif(data[,i], 7))))
-#     
-#     #out <- rbind(out,
-#     #             subs <- data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
-#     #                                                   signif(data[,i], 7))))
-#   }
-#   }
-# 
-# 
-# Gm <- get_outlier_subjects(gm,gm.boxplot)
-# Mt <- get_outlier_subjects(mt,mt.boxplot)
-# Wm <- get_outlier_subjects(wm,wm.boxplot)
-
-# outliers for MT
-GM <- c()
-for (i in 1:ncol(gm)){
-GM <- rbind(GM,
-              sub1 <- data.frame(outliers_ind = match(signif(gm.boxplot$out[gm.boxplot$group == i], 7),
-                                                       signif(gm[,i], 7))))
-}
-GM$group = gm.boxplot$group
-# outliers for MT
-MT <- c()
-for (i in 1:ncol(mt)){ 
-  MT <- rbind(MT,
-              sub1 <- data.frame(outliers_ind = match(signif(mt.boxplot$out[mt.boxplot$group == i], 7),
-                                                    signif(mt[,i], 7))))
-}
-MT$group = mt.boxplot$group
-
-# outliers for WM
-WM <- c()
-for (i in 1:ncol(wm)){ 
-  WM <- rbind(WM, 
-              sub1 <- data.frame(outliers_ind = match(signif(wm.boxplot$out[wm.boxplot$group == i], 7),
-                                                    signif(wm[,i], 7))))
-}
-WM$group = wm.boxplot$group
-
-# Get all of the outliers that are in each group. If a subject has an outlier in all three methods, That gives me reason to investigate what it happening with these subjects structural maps and segmentation. 
-outliers.common <- intersect(intersect(unique(GM$outliers_ind),unique(WM$outliers_ind)),unique(MT$outliers_i))
-
-#Check all the outliers that are in the same ROI.
-  outliers.group = c()
-  for (i in 1:ncol(gm)){
-   outliers.group <- data.frame(intersect(intersect(WM$outliers_ind[WM$group == i],
-                                                    GM$outliers_ind[GM$group==i]),
-                                          MT$outliers_i[MT$group == i]))
-  }
-  outliers.group
-  # Therer are no outliers common in each group. 
-  
-  # Find the max and min of each group outlier. Group 7 ROI - Right post Insula 
-rPI_min <-match(signif(gm.boxplot$out[gm.boxplot$group == 7], 7),
-      signif(gm[,7], 7))[which.min(gm.boxplot$out[gm.boxplot$group ==7])]
-# [1] 14
-rPI_max <- match(signif(gm.boxplot$out[gm.boxplot$group == 7], 7),
-      signif(gm[,7], 7))[which.max(gm.boxplot$out[gm.boxplot$group ==7])]
-#[1] 20
-# GM Group 1 outliers - right Insula
-rI_min <- match(signif(gm.boxplot$out[gm.boxplot$group == 1], 7),
-      signif(gm[,1], 7))[which.min(gm.boxplot$out[gm.boxplot$group ==1])]
-# [1] 48
-rI_max <- match(signif(gm.boxplot$out[gm.boxplot$group == 1], 7),
-      signif(gm[,1], 7))[which.max(gm.boxplot$out[gm.boxplot$group ==1])]
-#[1] 8
-# GM Group 2 outliers - left Insula
-lI_min <- match(signif(gm.boxplot$out[gm.boxplot$group == 2], 7),
-      signif(gm[,2], 7))[which.min(gm.boxplot$out[gm.boxplot$group ==2])]
-# [1] 7
-lI_max <- match(signif(gm.boxplot$out[gm.boxplot$group == 2], 7),
-      signif(gm[,2], 7))[which.max(gm.boxplot$out[gm.boxplot$group ==2])]
-#[1] 35
-
-
-
-  
-```
 
 ## Read Participant information excel sheet and format to join with other data types. 
 ```{r participant info}
-library(tidyverse)
+
 # Load participant information
 ses_df <- readxl::read_xlsx("Participant_info.xlsx")
 
@@ -280,6 +38,7 @@ participant_info <- ses_df %>%
   
 ```
 
+
 ```{r merged data set}
 # This function loads subjects' BrainSuite statisics file using paste0 to create the fullpath for each subject. Function uses map_df to apply the read.delim function to each file, creating a long format of data. 
 load_subjects <- function (subjectID, path, extension) {
@@ -290,9 +49,10 @@ load_subjects <- function (subjectID, path, extension) {
 
 # Function to get inusla regions and other BrainSuite measurements
 # TO DO: Get a general function to map ROI ~ (hemisphere | region)
+
 get_Insula_common_subs <- function (x, time) {
   x %>%
-     # Get the total brain volume for each suject
+  # Get the total brain volume for each suject
   mutate(total_Vol = GM_Volume.mm.3. + WM_Volume.mm.3. + CSF_Volume.mm.3.) %>%
   # Get hemisphere for ROI
   mutate(hemisphere = ifelse( ROI_ID %in% c("500", "510", "520", "530"), 
@@ -305,18 +65,33 @@ get_Insula_common_subs <- function (x, time) {
   # add region to the data frame for ROI
   mutate(region = factor(substr(ROI_ID, 1, 2),
                         labels = c("In", "dAI", "vAI", "postI"))) %>%
-  # scale brain measures by total volume
+  # scale brain measures by total volume in each region
   mutate_at(c("GM_Volume.mm.3.", "WM_Volume.mm.3.", "CSF_Volume.mm.3."), 
             ~./total_Vol) %>%
-  # Drop Total volume and ROI, and rename measurement variables. 
+  # Drop ROI and rename measurement variables. 
   select(subject, hemisphere, region, 
          MT = Mean_Thickness.mm., GM = GM_Volume.mm.3., 
-         WM =  WM_Volume.mm.3., CSF = CSF_Volume.mm.3.) %>%
-  gather(key = "var", value = "value", 4:7) %>% 
+         WM =  WM_Volume.mm.3., CSF = CSF_Volume.mm.3., TV = total_Vol) %>%
+  gather(key = "var", value = "value", 4:8) %>% 
   unite("var_wide", hemisphere, region, var) %>% 
   spread(var_wide, value) %>%
+    # Get normalized total inusla volume in
+  mutate(left_In = left_dAI_GM + left_dAI_WM + 
+                   left_vAI_GM + left_vAI_WM + 
+                   left_postI_GM + left_postI_WM + 
+                   left_In_GM + left_In_WM) %>%
+  mutate(right_In = right_dAI_GM + right_dAI_WM +  
+                   right_vAI_GM + right_vAI_WM  +
+                   right_postI_GM + right_postI_WM + 
+                   right_In_GM + right_In_WM) %>%
   mutate(time = time)
 }
+
+# Are there outliers inthe total brain volume? Does it make sense to have outliers? Are the outliers interpretable? If the two brains are outliers? Are they actually larger when comparing side by side when the aspect ration is 1:1, use BrainSuite viewing tool? Is the difference in size due to an artifact? 
+
+# Does it make sense to normalize mean thickness with total brain volume.
+# Literature on mean thickness... Is it typically normalized by total brain volume?
+
 
 # Load the subjects
 wave_1 <- load_subjects(subject_to_load,
@@ -332,24 +107,35 @@ wave1_wide_normalize <- get_Insula_common_subs(wave_1, 1)
 wave2_wide_normalize <- get_Insula_common_subs(wave_2, 2)
 
 # Create wide data format for both timepoints
+# Add parcipant information to the merged data set
 merged <- merge(wave1_wide_normalize, wave2_wide_normalize, all = TRUE) %>% 
-  gather(key = "var", value = "value" , 2:33) %>% 
+  gather(key = "var", value = "value" , 2:43) %>% 
   unite("var_wide",var,time) %>% 
   spread(var_wide,value) %>%
   merge(participant_info)
 
-# Add parcipant information to the merged data set
-
+psych::describe(merged)
+psych::pairs.panels(merged %>% select(left_dAI_GM_1
+                                      ,age_1,age_2,culture, gender))
 
 ```
 
 ```{r boxplot_wave1}
+# Visual inspection of subjects. 
 # Show boxplots
+library(ggplot2)
+p <- ggplot() + 
+  
 
-csf = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=2, to=dim(wave1_wide)[2], by=4)])
-gM = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=3, to=dim(wave1_wide)[2], by=4)])
-mT = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=4, to=dim(wave1_wide)[2], by=4)])
-wM = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=5, to=dim(wave1_wide)[2], by=4)])
+
+csf_1 = boxplot(ylab = "normalized Volume a.u.", 
+             wave1_wide_normalize[seq(from=2, to=dim(wave1_wide_normalize)[2], by=4)])
+gM_1 = boxplot(ylab = "normalized Volume a.u.", 
+             wave1_wide_normalize[seq(from=3, to=dim(wave1_wide_normalize)[2], by=4)])
+mT_1 = boxplot(ylab = "units in mm^2", 
+             wave1_wide_normalize[seq(from=4, to=dim(wave1_wide_normalize)[2], by=4)])
+wM_1 = boxplot(ylab = "normalized Volume a.u.", 
+             wave1_wide_normalize[seq(from=5, to=dim(wave1_wide_normalize)[2], by=4)])
 
 # Now add wave 2 to the data set.
   
@@ -358,14 +144,34 @@ wM = boxplot(ylab = "normalized Volume a.u.", wave1_wide[seq(from=5, to=dim(wave
 
 # Get outliers for same regions as before with normalized brain volumes
 ```{r normalized outliers}
-# Extract the brain measures into their own data set. 
-csf <- wave1_wide_normalize[seq(from = 2, to = dim(wave1_wide_normalize)[2], by = 4)]
-gm <- wave1_wide_normalize[seq(from = 3, to = dim(wave1_wide_normalize)[2], by = 4)]
-mt <- wave1_wide_normalize[seq(from = 4, to = dim(wave1_wide_normalize)[2], by = 4)]
-wm <- wave1_wide_normalize[seq(from = 5, to = dim(wave1_wide_normalize)[2], by = 4)]
 
+# Doesnt quite work yet. But it should work
+# get_outlier_subjects <- function(data,outliers) {
+#   out <- c()
+#   for (i in 1:ncol(data)){
+#     out <- as.list(out,data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
+#                                                        signif(data[,i], 7))))
+#     
+#     out <- rbind(out,
+#                  subs <- data.frame(outliers_i = match(signif(outliers$out[outliers$group == i], 7),
+#                                                        signif(data[,i], 7))))
+#   }
+#   }
 # Turn this into a function later on
 # 
+
+# Gm <- get_outlier_subjects(gm,gm.boxplot)
+# Mt <- get_outlier_subjects(mt,mt.boxplot)
+# Wm <- get_outlier_subjects(wm,wm.boxplot)
+
+# outliers for MT
+# GM <- c()
+# for (i in 1:ncol(gm)){
+# GM <- rbind(GM,
+#               sub1 <- data.frame(outliers_ind = match(signif(gm.boxplot$out[gm.boxplot$group == i], 7),
+#                                                        signif(gm[,i], 7))))
+# }
+# GM$group = gm.boxplot$group
 
 # matcher <- function (boxObj,data){
 #   hits = tibble::tibble(.rows = 2)
@@ -378,44 +184,48 @@ wm <- wave1_wide_normalize[seq(from = 5, to = dim(wave1_wide_normalize)[2], by =
 #   return(hits)
 #   }
 # try map_df function
-# map_df(1:8, function (i) {match(signif(gM$out[gM$group == i], 7),
-#                      signif(data[,i], 7))[which.max(gM$out[gM$group == i])]})
+# map_df(1:8, function (i) {match(signif(gM_1$out[gM_1$group == i], 7),
+#                      signif(data[,i], 7))[which.max(gM_1$out[gM_1$group == i])]})
 
 # Find the max and min of each measure in all Insula regions.
 
 # Group 7 ROI - Right post Insula 
-rPI_min <-match(signif(gM$out[gM$group == 7], 7),
-      signif(gm[,7], 7))[which.min(gM$out[gM$group ==7])]
-rPI_max <- match(signif(gM$out[gM$group == 7], 7),
-      signif(gm[,7], 7))[which.max(gM$out[gM$group ==7])]
+rPI_min <-match(signif(gM_1$out[gM_1$group == 7], 7),
+                signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,7],7))[which.min(gM_1$out[gM_1$group ==7])]
+rPI_max <- match(signif(gM_1$out[gM_1$group == 7], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,7], 7))[which.max(gM_1$out[gM_1$group ==7])]
 
 # GM Group 3 outliers - left post Insula
-lPI_min <- match(signif(gM$out[gM$group == 3], 7),
-      signif(gm[,3], 7))[which.min(gM$out[gM$group ==3])]
-lPI_max <- match(signif(gM$out[gM$group == 3], 7),
-      signif(gm[,3], 7))[which.max(gM$out[gM$group ==3])]
+lPI_min <- match(signif(gM_1$out[gM_1$group == 3], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,3], 7))[which.min(gM_1$out[gM_1$group ==3])]
+lPI_max <- match(signif(gM_1$out[gM_1$group == 3], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,3], 7))[which.max(gM_1$out[gM_1$group ==3])]
 
 # GM Group 1 outliers - left dorsal anterior Insula
-ldAI_min <- match(signif(gM$out[gM$group == 1], 7),
-      signif(gm[,1], 7))[which.min(gM$out[gM$group ==1])]
-ldAI_max <- match(signif(gM$out[gM$group == 1], 7),
-      signif(gm[,1], 7))[which.max(gM$out[gM$group ==1])]
+ldAI_min <- match(signif(gM_1$out[gM_1$group == 1], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,1], 7))[which.min(gM_1$out[gM_1$group ==1])]
+ldAI_max <- match(signif(gM_1$out[gM_1$group == 1], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,1], 7))[which.max(gM_1$out[gM_1$group ==1])]
 
 # GM Group 5 outliers - right dorsal anterior Insula
-rdAI_min <- match(signif(gM$out[gM$group == 5], 7),
-      signif(gm[,5], 7))[which.min(gM$out[gM$group ==5])]
-rdAI_max <- match(signif(gM$out[gM$group == 5], 7),
-      signif(gm[,5], 7))[which.max(gM$out[gM$group ==5])]
+rdAI_min <- match(signif(gM_1$out[gM_1$group == 5], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,5], 7))[which.min(gM_1$out[gM_1$group ==5])]
+rdAI_max <- match(signif(gM_1$out[gM_1$group == 5], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,5], 7))[which.max(gM_1$out[gM_1$group ==5])]
 
 # GM Group 2 outliers - left Insula
-lI_min_lI <- match(signif(gM$out[gM$group == 2], 7),
-      signif(gm[,2], 7))[which.min(gM$out[gM$group == 2])]
-lI_max <- match(signif(gM$out[gM$group == 2], 7),
-      signif(gm[,2], 7))[which.max(gM$out[gM$group == 2])]
+lI_min_lI <- match(signif(gM_1$out[gM_1$group == 2], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,2], 7))[which.min(gM_1$out[gM_1$group == 2])]
+lI_max <- match(signif(gM_1$out[gM_1$group == 2], 7),
+      signif(wave1_wide_normalize[seq(from=3,                                    to=dim(wave1_wide_normalize)[2],by=4)][,2], 7))[which.max(gM_1$out[gM_1$group == 2])]
 
 
 ```
 
+```{r Model_1}
+## Null Hypothesis is that there is no group difference in mean cortical thickness. alternative Hypothesis is that there is a group difference in mean cortical thickness. 
+
+```
 
 ## Plot statistics using sex, and age to see trends
 ```{r}
