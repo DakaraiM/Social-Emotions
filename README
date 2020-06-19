@@ -1,0 +1,3 @@
+These files run Brainsuite Statistics Toolbox in R, and Run R scripts to do Hierarchical Bayesian Analysis. 
+BSSR_Analysis.R is for loading wave specific data to be used for analysis.
+BSSR_Long.R is for loading and modeling longitudindal analysis. 
