@@ -6,16 +6,17 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_chunk$set(echo = TRUE)
 library(bssr)
+bssr::setup("/home/dakaraim/BrainSuite19b")
 ```
 
 ``` {r load data}
 long <- load_bss_data(type = "tbm",
-                      subjdir = ".",
-                      csv = "../Common_subjects_paired.csv",
-                      smooth = 0,
-                      atlas = "C:/Program Files/BrainSuite19b/svreg/BCI-DNI_brain_atlas/BCI-DNI_brain")
+                      subjdir = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/subject_session",
+                      csv = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/subject_session/Common_subject_paired_edited.csv",
+                      smooth = 3.0,
+                      atlas = "/home/dakaraim/BrainSuite19b/svreg/BCI-DNI_brain_atlas/BCI-DNI_brain")
 
 ```
 
@@ -23,62 +24,62 @@ long <- load_bss_data(type = "tbm",
 # Run model and call it q
 q <- bss_ttest(group_var = "session", long, paired = TRUE)
 # Save model and review output
- save_bss_out(long,q,"BSSR_paired_ttest")
+save_bss_out(long, q, outdir = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/subject_session/PairedTtest_08-07-20")
+
 ```
 
 
 
 ``` {r load deformation difference}
 difference <- load_bss_data(type = "tbm",
-                      subjdir = ".",
-                      csv = "../Common_subjects_paired.csv",
-                      smooth = 3.0,
-                      atlas = "C:/Program Files/BrainSuite19b/svreg/BCI-DNI_brain_atlas/BCI-DNI_brain")
+                      subjdir = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/subject_session",
+                      csv = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/subject_session/Common_subjects_paired.csv",
+                      smooth = 3.1,
+                      atlas = "/home/dakaraim/BrainSuite19b/svreg/BCI-DNI_brain_atlas/BCI-DNI_brain")
 
 ```
-``` {r bss_lm with sex}
-# 1 = males and 
-# q models intercept and the effect of sex which tells us the mean deformation across all voxels and how much male or females vary about this average. 
-q <- bss_lm(main_effect = "sex", bss_data = long_cov, covariates = "1")
+
+
+``` {r bss_lm of sex and ageDiff}
+# -1 = females, and 1 = males
+# Can sex predict local volume changes when controlling for the age difference between imaging sessions? 
+q <- bss_lm(main_effect = "sex", bss_data = difference, covariates = "ageDiff")
 # Save model and review output
- save_bss_out(long_cov, q, "sex")
+ save_bss_out(difference, q, outdir = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/subject_session/lm_sex_ageDiff_08-07-2020")
+
 ```
 
-``` {r bss_lm with sex + ageDiff}
-# q models the amount of variance ageDifference inn the change in deformation map. 
-q <- bss_lm(main_effect = "sex", bss_data = long_cov, covariates = "ageDiff")
+``` {r bss_lm of sex and ageDiff and age1}
+# Can sex predict local volume changes when controlling for age diffence between imaging sessions and the intial age at wave 1?
+q <- bss_lm(main_effect = "sex", bss_data = difference, covariates = "ageDiff + age1")
 # Save model and review output
- save_bss_out(long_cov, q, "sex_ageDiff")
+ save_bss_out(difference, q, "lm_sex_ageDiff_age1_08-07-2020")
 ```
-``` {r bss_lm with sex + age1}
-# q models the amount of variance ageDifference inn the change in deformation map. 
-q <- bss_lm(main_effect = "sex", bss_data = long_cov, covariates = "age1")
+
+``` {r bss_lm of age1 and ageDiff}
+# Can age at wave1 predict the change in local volume when controlling for the age difference between sessions? 
+q <- bss_lm(main_effect = "age1", bss_data = difference, covariates = "ageDiff")
 # Save model and review output
- save_bss_out(long_cov, q, "sex_age1")
+ save_bss_out(difference, q, "lm_age1_ageDiff_08-07-2020")
 ```
 
 
 
 ``` {r bss_lm with sex + ageDiff + age1}
-#q models the main effect of age when controlling for ageDiff and age at wave 1 of the change in deformation map. 
-q <- bss_lm(main_effect = "sex", bss_data = long_cov, covariates = "ageDiff + age1")
+# Can age at wave1 predict the change in local volume change when controlling for ageDiff and sex?
+q <- bss_lm(main_effect = "age1", bss_data = difference, covariates = "ageDiff + sex")
 # Save model and review output
- save_bss_out(long_cov, q, "sex_ageDiff_age1")
+ save_bss_out(difference, q, "lm_sex_ageDiff_age1")
 ```
 
 ``` {r bss_lm sex + age1 + sex interaction}
+# INTERACTIONS ARE NOT YET FUNCTIONAL IN BSSR!  
+
 # q models the main effect of sex and the interaction between age and sex 
 
 #q <- bss_lm(main_effect = "sex", bss_data = long_cov, covariates = "ageDiff*sex" )
 
-q <- bss_lm(main_effect = "sex", bss_data = long_cov, covariates = "ageDiff*sex" )
+#q <- bss_lm(main_effect = "sex", bss_data = difference, covariates = "ageDiff*sex" )
 
 
-```
-
-```{r bss_lm age1 + sex}
-
-q <- bss_lm(main_effect = "age1", bss_data = long_cov, covariates = "sex")
-# Save model and review output
- save_bss_out(long_cov, q, "age1_sex")
 ```

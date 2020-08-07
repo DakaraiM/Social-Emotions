@@ -1,19 +1,15 @@
 ---
 title: "BSSR_Analysis"
 author: "DakaraiMcCoy"
-date: "2/25/2020"
+date: "08/07/2020"
 output: html_document
 ---
 
-## Gather all measured variables for each subject into one sheet
-```{r load data}
-# Objective of this block is to get the common subjects across both waves and all their covariates
-# combine all spread sheets onto one page
-# check which subjects common to both time points
-# rename any variables as necessary
-# save a *.csv file that has subjects at both timepoints and denote the differenece with a 'space', '.', '-', or '_' folllowed by a 1 or a 2 extension
 
-```
+# data description
+
+The sex is coded -1 for females and 1 for males. 
+culture is coded -1 for Latino  and 1 for East Asian
 
 ## initialization
 ```{r bssr}
@@ -22,16 +18,16 @@ output: html_document
 library(bssr)
 # load the data
 wave_1 <- load_bss_data(type = "tbm",
-                       subjdir = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/HandEdited/wave1",
-                       csv =   "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/Common_subjects.csv",
-                       smooth = 0,
-                       atlas = "/Applications/BrainSuite19b/svreg/BCI-DNI_brain_atlas/BCI-DNI_brain")
+                       subjdir = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session1/",
+                       csv =   "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session1/Common_subjects_wave1.csv",
+                       smooth = 3.0,
+                       atlas = "/home/dakaraim/BrainSuite19b/svreg/BCI-DNI_brain_atlas/BCI-DNI_brain")
 
 wave_2 <- load_bss_data(type = "tbm",
-                        subjdir = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/HandEdited/BrainSuite_Wave2_Processed",
-                        csv = "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/Common_subjects.csv",
-                        smooth = 0,
-                        atlas = "/Applications/BrainSuite19b/svreg/BCI-DNI_brain_atlas/BCI-DNI_brain")
+                        subjdir = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session2/",
+                        csv = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session2/Common_subjects_wave2.csv",
+                        smooth = 3.0,
+                        atlas = "/home/dakaraim/BrainSuite19b/svreg/BCI-DNI_brain_atlas/BCI-DNI_brain")
 ```
 ## Whole brain modeling 
 The goal here is to explore the main effects of age, sex, culture, IQ and SES.
@@ -83,36 +79,35 @@ Research Questions:
 
 # Test for the main effect of sex for subjects in wave 1. 
 sex_ttest_1 <- bss_ttest(group_var = "sex", bss_data = wave_1, paired = FALSE)
+save_bss_out(bss_data = wave_1, sex_ttest_1, outdir="/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session1/sex_ttest")
 
 #Test for the main effect of culture for subjects in wave 1
-culture_main <- bss_ttest(group_var = "culture", bss_data = wave_1, paired = FALSE)
+#culture_main <- bss_ttest(group_var = "culture", bss_data = wave_1, paired = FALSE)
 
 # test for the main effect of IQ for subjects in wave 1
-age_ttest <- bss_ttest(group_var = "age at wave 1", bss_data = wave_1, paired = FALSE)
+age_corr_1 <- bss_corr(corr_var = "age1", bss_data = wave_1)
+save_bss_out(bss_data = wave_1, age_corr_1, outdir="/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session1/age_corr")
 
 ### NEED TO GET DATA FROM FEI ON VIOLENCE EXPOSURE ---> 2/28/20
 # # Test for the main effect of violence exposure
-violence_ttest <- bss_ttest(groupvar = "violence", bss_data = wave_1, paired = FALSE)
+#violence_ttest <- bss_ttest(groupvar = "violence", bss_data = wave_1, paired = FALSE)
 
 
 # If I find a significant whole brain effect, I want to know if the main effect will remain when including different covariates
 
 # Test for the main effect of sex when controlled by the age at wave 1. 
-sex_model <- bss_anova(main_effect = "sex", covariates = "age at wave 1", bss_data = wave_1, mult_comp = "fdr" )
+sex_model <- bss_anova(main_effect = "sex", covariates = "age1", bss_data = wave_1 )
+save_bss_out(bss_data = wave_1, sex_model, outdir="/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session1/sex_age1")
 
 # Test fot the main effect of culture when controlled by the age at wave 1.
-culture_model <- bss_anova(main_effect = "culture", covariates = "NULL", bss_data = wave_1, mult_comp = "fdr")
-
-# Test the difference between lm_vec and the the bss_anova without any covariates. Are the results the same? 
-sex_model_regression <- lm_vec(main_effect = "sex", covariates = "age at wave 1", bss_data = wave_1)
+#culture_model <- bss_anova(main_effect = "culture", covariates = "NULL", bss_data = wave_1, mult_comp = "fdr")
 
 
 
 
 ```
 
-```{r save data/model}
-save_bss_out(bss_data = wave_1, sex_ttest_1, outdir="~/Desktop/tbm_anova/sex")
-save_bss_out(wave_1, , outdir = "~/Desktop/tbm_anova/lm_vec")
-save_bss_out(wave_1, age_ttest, outdir = "~/Desktop/tbm_anova_sex/ttest_1")
+```{r tbm_wave2}
+
+
 ```
