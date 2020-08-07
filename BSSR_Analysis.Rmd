@@ -81,6 +81,9 @@ Research Questions:
 sex_ttest_1 <- bss_ttest(group_var = "sex", bss_data = wave_1, paired = FALSE)
 save_bss_out(bss_data = wave_1, sex_ttest_1, outdir="/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session1/sex_ttest")
 
+sex_corr_1 <- bss_corr(corr_var = "sex", bss_data = wave_1)
+save_bss_out(bss_data = wave_1, sex_corr_1, outdir = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session1/sex_corr")
+
 #Test for the main effect of culture for subjects in wave 1
 #culture_main <- bss_ttest(group_var = "culture", bss_data = wave_1, paired = FALSE)
 
