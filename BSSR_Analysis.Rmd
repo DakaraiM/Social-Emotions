@@ -135,7 +135,4 @@ save_bss_out(bss_data = wave_2, age_corr_2, outdir="/home/dakaraim/Data/MH_adole
 sex_model <- bss_anova(main_effect = "sex", covariates = "age2", bss_data = wave_2 )
 save_bss_out(bss_data = wave_2, sex_model, outdir="/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session2/sex_age2")
 
-age_ttest_2 <- bss_ttest(group_var = "age2", bss_data = wave_2, paired = FALSE)
-save_bss_out(bss_data = wave_2, age_ttest_2, outdir = "/home/dakaraim/Data/MH_adolescent_waves/StructuralPipeline/session2/age2_ttest")
-
 ```
