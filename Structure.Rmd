@@ -8,6 +8,8 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+# Need R 4.0 to get psych toolbox to work. 
+# library(psych)
 ```
 
 ## Get Descriptive Statistics - Method validation
@@ -19,17 +21,17 @@ I need to check which subjects are outliers and which subjects are outliers in e
 # Load participant information
 ses_df <- readxl::read_xlsx("Participant_info.xlsx")
 
-# Get subjects that are in both timepoints
+# Get subjectsbb that are in both timepoints
 subject_to_load <- ses_df %>% 
-  mutate(wave1_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", `Subject #`, "-anat.roiwise.stats.txt")), 
-         wave2_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2/", `Subject #`, "_T1w_1m.roiwise.stats.txt"))) %>% 
+  mutate(wave1_data = file.exists(paste0("~/Shared/BrainSuite/Stats/wave1/sub", `Subject #`, "-anat.roiwise.stats.txt")), 
+         wave2_data = file.exists(paste0("~/Shared/BrainSuite/Stats/wave2/", `Subject #`, "_T1w_1m.roiwise.stats.txt"))) %>% 
   filter(wave1_data, wave2_data) %>% 
   pull(`Subject #`) 
 
 # Get information for subjects that are in both timepoints
 participant_info <- ses_df %>% 
-  mutate(wave1_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub", `Subject #`, "-anat.roiwise.stats.txt")), 
-         wave2_data = file.exists(paste0("/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2/", `Subject #`, "_T1w_1m.roiwise.stats.txt"))) %>% 
+  mutate(wave1_data = file.exists(paste0("~/Shared/BrainSuite/Stats/wave1/sub", `Subject #`, "-anat.roiwise.stats.txt")), 
+         wave2_data = file.exists(paste0("~/Shared/BrainSuite/Stats/wave2/", `Subject #`, "_T1w_1m.roiwise.stats.txt"))) %>% 
   filter(wave1_data, wave2_data) %>%
   select(subject = `Subject #`, culture = starts_with("culture"), 
          gender = starts_with("gender"), starts_with("age")) %>%
@@ -95,11 +97,11 @@ get_Insula_common_subs <- function (x, time) {
 
 # Load the subjects
 wave_1 <- load_subjects(subject_to_load,
-                        "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave1/sub",
+                        "~/Shared/BrainSuite/Stats/wave1/sub",
                         "-anat.roiwise.stats.txt")
 
 wave_2 <- load_subjects(subject_to_load,
-                        "/Volumes/SocialDevelopmentProject/fMRI/BrainSuite/Stats/wave2/",
+                        "~/Shared/BrainSuite/Stats/wave2/",
                         "_T1w_1m.roiwise.stats.txt")
 
 # Get Insula from common subjects
@@ -114,9 +116,9 @@ merged <- merge(wave1_wide_normalize, wave2_wide_normalize, all = TRUE) %>%
   spread(var_wide,value) %>%
   merge(participant_info)
 
-psych::describe(merged)
-psych::pairs.panels(merged %>% select(left_dAI_GM_1
-                                      ,age_1,age_2,culture, gender))
+
+#psych::describe(merged)
+#psych::pairs.panels(merged %>% select(left_dAI_GM_1, age_1,age_2,culture, gender))
 
 ```
 
@@ -124,7 +126,7 @@ psych::pairs.panels(merged %>% select(left_dAI_GM_1
 # Visual inspection of subjects. 
 # Show boxplots
 library(ggplot2)
-p <- ggplot() + 
+#p <- ggplot() + 
   
 
 
